@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalTrain - UTS Inspired</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+  body{font-family:'Inter',sans-serif}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body class="bg-[#f5f7fb] min-h-screen">
+<!-- Top Bar -->
+<header class="bg-gradient-to-r from-[#0f1e5e] to-[#1e3a8a] text-white sticky top-0 z-50">
+  <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center text-[#0f1e5e] font-extrabold">T</div>
+      <div>
+        <h1 class="font-extrabold leading-none">LocalTrain</h1>
+        <p class="text-[11px] opacity-70 -mt-1">UTS • Paperless Ticketing</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="showPage('wallet')" class="bg-white/15 px-3 py-1.5 rounded-full text-xs font-semibold"><i class="fa-solid fa-wallet mr-1"></i> <span id="headerBalance">₹ 0</span></button>
+      <button onclick="handleLogout()" class="w-8 h-8 bg-white/10 rounded-full"><i class="fa-solid fa-right-from-bracket text-xs"></i></button>
+    </div>
+  </div>
+</header>
+
+<!-- Auth Overlay -->
+<div id="authOverlay" class="fixed inset-0 bg-[#0f1e5e] z-[60] flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-[24px] p-6 shadow-2xl">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 bg-[#0f1e5e] rounded-2xl mx-auto flex items-center justify-center text-white text-xl"><i class="fa-solid fa-train"></i></div>
+      <h2 class="text-xl font-extrabold mt-3">Welcome to LocalTrain</h2>
+      <p class="text-sm text-gray-500">Login to book paperless tickets</p>
+    </div>
+    <!-- Tabs -->
+    <div class="flex bg-gray-100 rounded-full p-1 mb-5">
+      <button id="tabLogin" onclick="setAuthMode('login')" class="flex-1 py-2 rounded-full bg-[#0f1e5e] text-white text-sm font-bold">Login</button>
+      <button id="tabRegister" onclick="setAuthMode('register')" class="flex-1 py-2 rounded-full text-gray-600 text-sm font-bold">Register</button>
+    </div>
+    <form id="authForm" onsubmit="handleAuth(event)" class="space-y-3">
+      <div id="regNameWrap" class="hidden">
+        <label class="text-xs font-bold text-gray-600">Full Name</label>
+        <input id="regName" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0f1e5e] text-sm" placeholder="Rahul Sharma">
+      </div>
+      <div>
+        <label class="text-xs font-bold text-gray-600">Mobile Number</label>
+        <input id="authPhone" required maxlength="10" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0f1e5e] text-sm" placeholder="9876543210">
+      </div>
+      <div id="regEmailWrap" class="hidden">
+        <label class="text-xs font-bold text-gray-600">Email (optional)</label>
+        <input id="regEmail" type="email" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 text-sm" placeholder="rahul@example.com">
+      </div>
+      <div>
+        <label class="text-xs font-bold text-gray-600">Password</label>
+        <input id="authPass" required type="password" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0f1e5e] text-sm" placeholder="••••••••">
+      </div>
+      <button type="submit" id="authBtn" class="w-full bg-[#0f1e5e] text-white py-3.5 rounded-xl font-bold mt-2">Login →</button>
+      <p class="text-center text-xs text-gray-400 mt-2">Demo: any 10-digit phone + password ≥6 chars. New? Switch to Register.</p>
+    </form>
+    <p id="authMsg" class="text-center text-sm mt-3 hidden"></p>
+  </div>
+</div>
+
+<!-- Main Container -->
+<main class="max-w-md mx-auto pb-24">
+  <!-- Nav Tabs -->
+  <div class="bg-white mx-4 mt-4 rounded-2xl p-1.5 flex gap-1 shadow-sm sticky top-[60px] z-40">
+    <button onclick="showPage('book')" id="nav-book" class="flex-1 py-2.5 rounded-xl bg-[#0f1e5e] text-white text-xs font-bold"><i class="fa-solid fa-ticket mr-1"></i> Book</button>
+    <button onclick="showPage('tickets')" id="nav-tickets" class="flex-1 py-2.5 rounded-xl text-gray-600 text-xs font-bold"><i class="fa-solid fa-qrcode mr-1"></i> Tickets</button>
+    <button onclick="showPage('wallet')" id="nav-wallet" class="flex-1 py-2.5 rounded-xl text-gray-600 text-xs font-bold"><i class="fa-solid fa-wallet mr-1"></i> Wallet</button>
+    <button onclick="showPage('tte')" id="nav-tte" class="flex-1 py-2.5 rounded-xl text-gray-600 text-xs font-bold"><i class="fa-solid fa-user-shield mr-1"></i> TTE</button>
+  </div>
+
+  <!-- BOOK PAGE -->
+  <section id="page-book" class="px-4 mt-4 space-y-4">
+    <!-- Booking Type -->
+    <div class="bg-white rounded-2xl p-2 flex gap-2 shadow-sm">
+      <button onclick="setBookType('journey')" id="bt-journey" class="flex-1 py-3 rounded-xl bg-[#0f1e5e] text-white text-sm font-bold">Journey</button>
+      <button onclick="setBookType('platform')" id="bt-platform" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold">Platform</button>
+      <button onclick="setBookType('season')" id="bt-season" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold">Season</button>
+    </div>
+
+    <!-- Journey Form -->
+    <div id="form-journey" class="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-sm">Paperless Journey Ticket</h3>
+        <span class="text-[11px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">Valid 1 Hour</span>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">From Station</label>
+          <select id="fromStation" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold"></select>
+        </div>
+        <button onclick="swapStations()" class="mx-auto block w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-arrow-right-arrow-left text-xs"></i></button>
+        <div>
+          <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wide">To Station</label>
+          <select id="toStation" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] font-bold text-gray-500 uppercase">Class</label>
+            <select id="travelClass" class="w-full mt-1 px-3 py-3 rounded-xl border border-gray-200 text-sm font-bold">
+              <option value="SECOND">Second • ₹5+</option>
+              <option value="FIRST">First • ₹40+</option>
+              <option value="AC">AC • ₹60+</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-gray-500 uppercase">Passengers</label>
+            <select id="paxCount" class="w-full mt-1 px-3 py-3 rounded-xl border border-gray-200 text-sm font-bold">
+              <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="farePreview" class="bg-[#f0f4ff] rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-[#0f1e5e] uppercase">Estimated Fare</p>
+          <p class="text-2xl font-extrabold text-[#0f1e5e]" id="fareAmount">—</p>
+          <p class="text-xs text-gray-500" id="fareDistance">Select stations</p>
+        </div>
+        <button onclick="getFare()" class="bg-white px-4 py-2 rounded-full text-xs font-bold shadow">Check Fare</button>
+      </div>
+      <button onclick="bookJourney()" class="w-full bg-[#0f1e5e] text-white py-4 rounded-xl font-extrabold text-sm">Book Ticket • Pay from R-Wallet</button>
+      <p class="text-[11px] text-center text-gray-400">GPS validated • Paperless • No cancellation</p>
+    </div>
+
+    <!-- Platform Form -->
+    <div id="form-platform" class="bg-white rounded-2xl p-5 shadow-sm space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-sm">Platform Ticket</h3>
+        <span class="text-[11px] bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">Valid 2 Hours</span>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-gray-500 uppercase">Station</label>
+        <select id="platformStation" class="w-full mt-1 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-semibold"></select>
+      </div>
+      <div class="bg-orange-50 rounded-xl p-4 text-center">
+        <p class="text-xs text-orange-700 font-bold">Flat Fare</p>
+        <p class="text-2xl font-extrabextended text-orange-700">₹10 <span class="text-sm font-normal">per person</span></p>
+      </div>
+      <button onclick="bookPlatform()" class="w-full bg-[#0f1e5e] text-white py-4 rounded-xl font-extrabold text-sm">Book Platform Ticket</button>
+    </div>
+
+    <!-- Season Form -->
+    <div id="form-season" class="bg-white rounded-2xl p-5 shadow-sm space-y-4 hidden">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-sm">Season Pass</h3>
+        <span class="text-[11px] bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-bold">Monthly / Quarterly</span>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[11px] font-bold text-gray-500 uppercase">From</label>
+          <select id="seasonFrom" class="w-full mt-1 px-3 py-3 rounded-xl border text-sm font-bold"></select>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-gray-500 uppercase">To</label>
+          <select id="seasonTo" class="w-full mt-1 px-3 py-3 rounded-xl border text-sm font-bold"></select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <select id="seasonClass" class="px-3 py-3 rounded-xl border text-sm font-bold">
+          <option value="SECOND">Second</option><option value="FIRST">First</option><option value="AC">AC</option>
+        </select>
+        <select id="seasonType" class="px-3 py-3 rounded-xl border text-sm font-bold">
+          <option value="MONTHLY">Monthly • 30 Days</option><option value="QUARTERLY">Quarterly • 90 Days</option>
+        </select>
+      </div>
+      <div class="bg-purple-50 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-purple-700 uppercase">Season Fare</p>
+          <p class="text-xl font-extrabold text-purple-700" id="seasonFare">—</p>
+        </div>
+        <button onclick="getSeasonFare()" class="bg-white px-4 py-2 rounded-full text-xs font-bold shadow">Check</button>
+      </div>
+      <button onclick="bookSeason()" class="w-full bg-[#0f1e5e] text-white py-4 rounded-xl font-extrabold text-sm">Buy Season Pass</button>
+    </div>
+  </section>
+
+  <!-- TICKETS PAGE -->
+  <section id="page-tickets" class="px-4 mt-4 hidden">
+    <div class="bg-white rounded-2xl p-3 flex gap-2 mb-4">
+      <button onclick="filterTickets('ACTIVE')" class="filterBtn flex-1 py-2 rounded-xl bg-[#0f1e5e] text-white text-xs font-bold" data-f="ACTIVE">Active</button>
+      <button onclick="filterTickets('ALL')" class="filterBtn flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold" data-f="ALL">All</button>
+      <button onclick="filterTickets('EXPIRED')" class="filterBtn flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold" data-f="EXPIRED">Expired</button>
+    </div>
+    <div id="ticketsList" class="space-y-3"></div>
+  </section>
+
+  <!-- WALLET PAGE -->
+  <section id="page-wallet" class="px-4 mt-4 hidden space-y-4">
+    <div class="bg-gradient-to-br from-[#0f1e5e] to-[#2563eb] rounded-[24px] p-6 text-white relative overflow-hidden">
+      <p class="text-sm opacity-80 font-semibold">R-Wallet Balance</p>
+      <p class="text-4xl font-extrabold mt-1" id="walletBal">₹ 0.00</p>
+      <p class="text-xs opacity-60 mt-1" id="walletUser">—</p>
+      <div class="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full"></div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+      <h3 class="font-bold text-sm mb-3">Recharge R-Wallet</h3>
+      <div class="grid grid-cols-3 gap-2 mb-3">
+        <button onclick="setRecharge(100)" class="py-3 rounded-xl border-2 border-gray-100 font-bold text-sm hover:border-[#0f1e5e]">₹100</button>
+        <button onclick="setRecharge(200)" class="py-3 rounded-xl border-2 border-gray-100 font-bold text-sm hover:border-[#0f1e5e]">₹200</button>
+        <button onclick="setRecharge(500)" class="py-3 rounded-xl border-2 bg-[#0f1e5e] text-white font-bold text-sm">₹500</button>
+      </div>
+      <div class="flex gap-2">
+        <input id="rechargeAmt" type="number" placeholder="Enter amount" class="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm font-bold">
+        <button onclick="doRecharge()" class="bg-[#0f1e5e] text-white px-6 py-3 rounded-xl font-bold text-sm">Add Money</button>
+      </div>
+    </div>
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+      <h3 class="font-bold text-sm mb-3">Recent Transactions</h3>
+      <div id="txnList" class="space-y-2 text-sm"></div>
+    </div>
+  </section>
+
+  <!-- TTE PAGE -->
+  <section id="page-tte" class="px-4 mt-4 hidden space-y-4">
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+      <h3 class="font-bold text-sm mb-1"><i class="fa-solid fa-shield-halved mr-2 text-[#0f1e5e]"></i>TTE Verification Portal</h3>
+      <p class="text-xs text-gray-500 mb-4">Paste QR payload or PNR to verify offline + online</p>
+      <textarea id="tteInput" rows="3" placeholder="Paste QR JWT payload here or enter PNR (e.g., UTS8F3K9L2A1)" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-xs font-mono"></textarea>
+      <div class="grid grid-cols-2 gap-2 mt-3">
+        <button onclick="tteVerify()" class="bg-[#0f1e5e] text-white py-3 rounded-xl font-bold text-sm">Verify Ticket</button>
+        <button onclick="tteMarkUsed()" class="bg-green-600 text-white py-3 rounded-xl font-bold text-sm">Mark as USED</button>
+      </div>
+      <div id="tteResult" class="mt-4 hidden"></div>
+    </div>
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+      <p class="text-xs font-bold text-amber-800"><i class="fa-solid fa-circle-info mr-1"></i> Offline Verification</p>
+      <p class="text-xs text-amber-700 mt-1">QR contains RS256/HS256 signed payload. TTE app verifies signature without internet using public key. Expiry & tampering detected instantly.</p>
+    </div>
+  </section>
+</main>
+
+<!-- Ticket Modal -->
+<div id="ticketModal" class="fixed inset-0 bg-black/60 z-[70] hidden items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-[24px] overflow-hidden">
+    <div class="bg-[#0f1e5e] text-white p-5 text-center relative">
+      <button onclick="closeModal()" class="absolute right-4 top-4 w-8 h-8 bg-white/20 rounded-full"><i class="fa-solid fa-xmark"></i></button>
+      <p class="text-xs opacity-70 tracking-widest font-bold">INDIAN RAILWAYS • PAPERLESS</p>
+      <h2 class="font-extrabold text-lg mt-1" id="modalPnr">UTS--------</h2>
+      <p class="text-xs opacity-80" id="modalMeta">CSMT → THANE • SECOND</p>
+    </div>
+    <div class="p-6 text-center">
+      <div id="qrcode" class="mx-auto flex justify-center"></div>
+      <p class="text-[11px] font-mono text-gray-500 mt-3 break-all" id="modalQrText"></p>
+      <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+        <div class="bg-gray-50 rounded-xl p-3"><p class="text-[11px] text-gray-500 font-bold">FARE</p><p class="font-extrabold" id="modalFare">₹0</p></div>
+        <div class="bg-gray-50 rounded-xl p-3"><p class="text-[11px] text-gray-500 font-bold">STATUS</p><p class="font-extrabold" id="modalStatus">ACTIVE</p></div>
+        <div class="bg-gray-50 rounded-xl p-3"><p class="text-[11px] text-gray-500 font-bold">VALID TILL</p><p class="font-bold text-xs" id="modalExpiry">—</p></div>
+      </div>
+      <p class="text-[11px] text-gray-400 mt-4">Show this QR to TTE. Screenshot not allowed outside 5m of station (GPS mocked).</p>
+      <button onclick="closeModal()" class="w-full mt-4 bg-gray-100 py-3 rounded-xl font-bold text-sm">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0f1e5e] text-white px-6 py-3 rounded-full text-sm font-bold shadow-xl hidden z-[80]"></div>
+
+<script>
+const API = location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? 'http://localhost:4000/api/v1' : '/api/v1';
+let token = localStorage.getItem('token');
+let user = JSON.parse(localStorage.getItem('user') || 'null');
+let stations = [];
+let activeFilter = 'ACTIVE';
+
+function showToast(msg, err=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className=`fixed bottom-6 left-1/2 -translate-x-1/2 ${err?'bg-red-600':'bg-[#0f1e5e]'} text-white px-6 py-3 rounded-full text-sm font-bold shadow-xl z-[80]`;
+  t.classList.remove('hidden');
+  setTimeout(()=>t.classList.add('hidden'),3000);
+}
+function headers(){ return {'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) } }
+async function api(path, opts={}){
+  const res = await fetch(API+path, { ...opts, headers:{...headers(), ...(opts.headers||{})}});
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.message || `Error ${res.status}`);
+  return data;
+}
+
+// Auth
+let authMode='login';
+function setAuthMode(m){
+  authMode=m;
+  document.getElementById('tabLogin').className = m==='login'?'flex-1 py-2 rounded-full bg-[#0f1e5e] text-white text-sm font-bold':'flex-1 py-2 rounded-full text-gray-600 text-sm font-bold';
+  document.getElementById('tabRegister').className = m==='register'?'flex-1 py-2 rounded-full bg-[#0f1e5e] text-white text-sm font-bold':'flex-1 py-2 rounded-full text-gray-600 text-sm font-bold';
+  document.getElementById('regNameWrap').classList.toggle('hidden', m!=='register');
+  document.getElementById('regEmailWrap').classList.toggle('hidden', m!=='register');
+  document.getElementById('authBtn').textContent = m==='login'?'Login →':'Create Account →';
+}
+async function handleAuth(e){
+  e.preventDefault();
+  const phone=document.getElementById('authPhone').value.trim();
+  const pass=document.getElementById('authPass').value;
+  const name=document.getElementById('regName').value.trim();
+  const email=document.getElementById('regEmail').value.trim();
+  const btn=document.getElementById('authBtn');
+  const msg=document.getElementById('authMsg');
+  btn.disabled=true; btn.textContent='Please wait...';
+  try{
+    const path = authMode==='login'?'/auth/login':'/auth/register';
+    const body = authMode==='login'?{phone,password:pass}:{phone,fullName:name||'Demo User',password:pass,email:email||undefined};
+    const res = await api(path, {method:'POST', body:JSON.stringify(body)});
+    token=res.data.accessToken || res.data.token; user=res.data;
+    localStorage.setItem('token', token); localStorage.setItem('user', JSON.stringify(user));
+    document.getElementById('authOverlay').classList.add('hidden');
+    showToast(authMode==='login'?'Logged in':'Account created');
+    await afterLogin();
+  }catch(err){ msg.textContent=err.message; msg.className='text-center text-sm mt-3 text-red-600'; msg.classList.remove('hidden'); showToast(err.message,true); }
+  finally{ btn.disabled=false; btn.textContent= authMode==='login'?'Login →':'Create Account →'; }
+}
+function handleLogout(){ localStorage.clear(); location.reload(); }
+async function afterLogin(){
+  document.getElementById('walletUser').textContent=user.fullName||user.phone;
+  await Promise.all([loadStations(), loadWallet(), loadTickets()]);
+}
+function checkAuth(){
+  if(token && user){ document.getElementById('authOverlay').classList.add('hidden'); afterLogin(); }
+}
+
+// Stations & Fare
+async function loadStations(){
+  try{
+    const res = await api('/stations');
+    stations=res.data;
+    if(!stations || stations.length===0) throw new Error('No stations returned');
+    // Sort: SOUTHERN (Tamil Nadu) first, then others alphabetically
+    stations.sort((a,b)=>{
+      if(a.zone==='SOUTHERN' && b.zone!=='SOUTHERN') return -1;
+      if(a.zone!=='SOUTHERN' && b.zone==='SOUTHERN') return 1;
+      return a.name.localeCompare(b.name);
+    });
+    // Build grouped options with zone header
+    const tnStations = stations.filter(s=>s.zone==='SOUTHERN');
+    const otherStations = stations.filter(s=>s.zone!=='SOUTHERN');
+    const buildOpts = (list, label) => {
+      let html = `<optgroup label="${label} (${list.length})">` + list.map(s=>`<option value="${s.code}">${s.name} (${s.code}) • ${s.zone}</option>`).join('') + `</optgroup>`;
+      return html;
+    };
+    const opts = buildOpts(tnStations, '★ Tamil Nadu - Chennai & TN') + buildOpts(otherStations, 'Mumbai Suburban');
+    ['fromStation','toStation','platformStation','seasonFrom','seasonTo'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.innerHTML = opts;
+    });
+    // defaults - Tamil Nadu popular route
+    document.getElementById('fromStation').value='MSB';
+    document.getElementById('toStation').value='CGL';
+    document.getElementById('platformStation').value='MAS';
+    document.getElementById('seasonFrom').value='MAS';
+    document.getElementById('seasonTo').value='TBM';
+    console.log('Stations loaded:', stations.length, 'TN:', tnStations.length);
+  }catch(e){
+    console.error('loadStations failed', e);
+    showToast('Stations failed to load: '+(e.message||'error'), true);
+    // Fallback hardcoded stations if API fails (includes TN)
+    const fallback = [
+      {code:'MSB', name:'Chennai Beach', zone:'SOUTHERN'},
+      {code:'MAS', name:'Chennai Central MMC', zone:'SOUTHERN'},
+      {code:'TBM', name:'Tambaram', zone:'SOUTHERN'},
+      {code:'CGL', name:'Chengalpattu Jn', zone:'SOUTHERN'},
+      {code:'AVD', name:'Avadi', zone:'SOUTHERN'},
+      {code:'CBE', name:'Coimbatore Jn', zone:'SOUTHERN'},
+      {code:'CSMT', name:'Chhatrapati Shivaji Maharaj Terminus', zone:'CENTRAL'},
+      {code:'TNA', name:'Thane', zone:'CENTRAL'},
+    ];
+    stations=fallback;
+    const opts = fallback.map(s=>`<option value="${s.code}">${s.name} (${s.code}) • ${s.zone}</option>`).join('');
+    ['fromStation','toStation','platformStation','seasonFrom','seasonTo'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.innerHTML = opts;
+    });
+  }
+}
+function swapStations(){
+  const a=document.getElementById('fromStation'), b=document.getElementById('toStation');
+  const tmp=a.value; a.value=b.value; b.value=tmp;
+}
+async function getFare(){
+  const from=document.getElementById('fromStation').value;
+  const to=document.getElementById('toStation').value;
+  const cls=document.getElementById('travelClass').value;
+  try{
+    const res=await api(`/fare/calculate?from=${from}&to=${to}&class=${cls}`);
+    document.getElementById('fareAmount').textContent=`₹${res.data.fare}`;
+    document.getElementById('fareDistance').textContent=`${res.data.distanceKm} km • ${cls} • ${res.data.cached?'cached':''}`;
+  }catch(e){ showToast(e.message,true); }
+}
+async function getSeasonFare(){
+  const from=document.getElementById('seasonFrom').value;
+  const to=document.getElementById('seasonTo').value;
+  const cls=document.getElementById('seasonClass').value;
+  const pt=document.getElementById('seasonType').value;
+  try{
+    const res=await api(`/fare/calculate?from=${from}&to=${to}&class=${cls}&passType=${pt}`);
+    document.getElementById('seasonFare').textContent=`₹${res.data.fare}`;
+  }catch(e){ showToast(e.message,true); }
+}
+
+// Booking
+async function bookJourney(){
+  const body={ sourceCode:document.getElementById('fromStation').value, destCode:document.getElementById('toStation').value, travelClass:document.getElementById('travelClass').value, passengerCount:parseInt(document.getElementById('paxCount').value) };
+  try{ const res=await api('/bookings/journey',{method:'POST', body:JSON.stringify(body)}); showToast('Ticket booked! PNR: '+res.data.pnr); openTicket(res.data); loadWallet(); loadTickets(); }catch(e){ showToast(e.message,true); }
+}
+async function bookPlatform(){
+  const body={ stationCode:document.getElementById('platformStation').value };
+  try{ const res=await api('/bookings/platform',{method:'POST', body:JSON.stringify(body)}); showToast('Platform ticket booked!'); openTicket(res.data); loadWallet(); loadTickets(); }catch(e){ showToast(e.message,true); }
+}
+async function bookSeason(){
+  const body={ sourceCode:document.getElementById('seasonFrom').value, destCode:document.getElementById('seasonTo').value, travelClass:document.getElementById('seasonClass').value, passType:document.getElementById('seasonType').value };
+  try{ const res=await api('/bookings/season',{method:'POST', body:JSON.stringify(body)}); showToast('Season pass booked!'); openTicket(res.data); loadWallet(); loadTickets(); }catch(e){ showToast(e.message,true); }
+}
+
+function openTicket(data){
+  document.getElementById('modalPnr').textContent=data.pnr;
+  document.getElementById('modalFare').textContent=`₹${data.fare}`;
+  document.getElementById('modalStatus').textContent='ACTIVE';
+  document.getElementById('modalExpiry').textContent=new Date(data.expiresAt).toLocaleString();
+  document.getElementById('modalMeta').textContent=`${data.qrCodeData? 'QR Signed • ' : ''}${new Date().toLocaleDateString()}`;
+  document.getElementById('modalQrText').textContent=data.qrCodeData?.slice(0,120)+'...';
+  const qrEl=document.getElementById('qrcode'); qrEl.innerHTML='';
+  if(data.qrCodeData) new QRCode(qrEl, {text:data.qrCodeData, width:180, height:180});
+  document.getElementById('ticketModal').classList.remove('hidden');
+  document.getElementById('ticketModal').classList.add('flex');
+}
+function closeModal(){ document.getElementById('ticketModal').classList.add('hidden'); document.getElementById('ticketModal').classList.remove('flex'); }
+
+// Wallet
+async function loadWallet(){
+  try{
+    const res=await api('/wallet');
+    const bal=Number(res.data.balance);
+    document.getElementById('walletBal').textContent=`₹ ${bal.toFixed(2)}`;
+    document.getElementById('headerBalance').textContent=`₹ ${bal.toFixed(0)}`;
+    const hist=await api('/wallet/transactions?limit=5');
+    document.getElementById('txnList').innerHTML = hist.data.length? hist.data.map(t=>`
+      <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full ${t.type==='CREDIT'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'} flex items-center justify-center text-xs"><i class="fa-solid ${t.type==='CREDIT'?'fa-plus':'fa-minus'}"></i></div>
+          <div><p class="font-bold text-xs">${t.type} • ${t.status}</p><p class="text-[11px] text-gray-500">${new Date(t.createdAt).toLocaleString()}</p></div>
+        </div>
+        <span class="font-extrabold ${t.type==='CREDIT'?'text-green-600':'text-red-600'}">${t.type==='CREDIT'?'+':''}₹${Number(t.amount).toFixed(0)}</span>
+      </div>
+    `).join('') : '<p class="text-xs text-gray-400">No transactions yet</p>';
+  }catch(e){ console.error(e); }
+}
+function setRecharge(v){ document.getElementById('rechargeAmt').value=v; }
+async function doRecharge(){
+  const amt=Number(document.getElementById('rechargeAmt').value);
+  if(!amt || amt<1) return showToast('Enter valid amount',true);
+  try{ await api('/wallet/recharge',{method:'POST', body:JSON.stringify({amount:amt})}); showToast(`Recharged ₹${amt}`); loadWallet(); }catch(e){ showToast(e.message,true); }
+}
+
+// Tickets
+async function loadTickets(){
+  try{
+    const res=await api(`/bookings/my-tickets${activeFilter==='ALL'?'':'?status='+activeFilter}`);
+    const list=document.getElementById('ticketsList');
+    if(!res.data.length){ list.innerHTML='<div class="bg-white rounded-2xl p-8 text-center shadow-sm"><p class="text-gray-400 text-sm">No tickets found</p></div>'; return; }
+    list.innerHTML=res.data.map(t=>{
+      const isActive=t.status==='ACTIVE';
+      const color = t.status==='ACTIVE'?'bg-green-500': t.status==='EXPIRED'?'bg-gray-400':'bg-orange-500';
+      const icon = t.ticketType==='PLATFORM'?'fa-person-walking': t.ticketType==='SEASON'?'fa-id-card':'fa-train';
+      return `
+      <div class="bg-white rounded-2xl p-4 shadow-sm border-l-4 ${isActive?'border-green-500':'border-gray-300'}">
+        <div class="flex items-start justify-between">
+          <div class="flex gap-3">
+            <div class="w-10 h-10 rounded-xl bg-[#0f1e5e] text-white flex items-center justify-center"><i class="fa-solid ${icon} text-sm"></i></div>
+            <div>
+              <p class="font-extrabold text-sm">${t.pnr} <span class="font-normal text-xs text-gray-500">${t.ticketType}</span></p>
+              <p class="text-xs font-bold">${t.sourceStation||'-'} → ${t.destStation||'PLATFORM'} ${t.travelClass? '• '+t.travelClass:''}</p>
+              <p class="text-[11px] text-gray-500">₹${Number(t.fare).toFixed(0)} • ${t.distanceKm? Number(t.distanceKm).toFixed(1)+'km •':''} ${new Date(t.bookedAt).toLocaleString()}</p>
+            </div>
+          </div>
+          <span class="text-[11px] font-bold text-white px-2 py-1 rounded-full ${color}">${t.status}</span>
+        </div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="viewTicket('${t.pnr}')" class="flex-1 py-2.5 rounded-xl bg-[#0f1e5e] text-white text-xs font-bold">View QR</button>
+          <span class="flex-1 py-2.5 rounded-xl bg-gray-50 text-center text-[11px] font-bold">Exp: ${new Date(t.expiresAt).toLocaleString()}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ console.error(e); }
+}
+async function viewTicket(pnr){
+  try{
+    const res=await api(`/bookings/${pnr}`);
+    openTicket({...res.data, qrCodeData:res.data.qrPayload, fare:res.data.fare, pnr:res.data.pnr, expiresAt:res.data.expiresAt});
+    document.getElementById('modalStatus').textContent=res.data.status;
+  }catch(e){ showToast(e.message,true); }
+}
+function filterTickets(f){
+  activeFilter=f;
+  document.querySelectorAll('.filterBtn').forEach(b=>{
+    b.className = b.dataset.f===f? 'filterBtn flex-1 py-2 rounded-xl bg-[#0f1e5e] text-white text-xs font-bold' : 'filterBtn flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold';
+  });
+  loadTickets();
+}
+
+// TTE
+async function tteVerify(){
+  const val=document.getElementById('tteInput').value.trim();
+  if(!val) return showToast('Enter QR payload or PNR',true);
+  const body = val.startsWith('eyJ') ? {qrPayload:val} : {qrPayload:val}; // if PNR, fetch then verify
+  try{
+    let payload = val;
+    if(!val.startsWith('eyJ')){
+      // PNR entered - fetch ticket's qrPayload first
+      const t = await api(`/bookings/${val.toUpperCase()}`);
+      payload = t.data.qrPayload;
+      if(!payload) throw new Error('No QR found for PNR');
+      document.getElementById('tteInput').value = payload;
+    }
+    const res=await api('/tte/verify', {method:'POST', body:JSON.stringify({qrPayload:payload})});
+    const el=document.getElementById('tteResult');
+    el.classList.remove('hidden');
+    const ok=res.valid;
+    el.innerHTML=`
+      <div class="rounded-xl p-4 ${ok?'bg-green-50 border border-green-200':'bg-red-50 border border-red-200'}">
+        <p class="font-extrabold ${ok?'text-green-700':'text-red-700'}"><i class="fa-solid ${ok?'fa-circle-check':'fa-circle-xmark'}"></i> ${ok?'VALID TICKET':'INVALID'} ${res.offlineVerified?'• Offline Sig OK':''}</p>
+        <p class="text-xs mt-1 ${ok?'text-green-700':'text-red-700'}">Reason: ${res.reason}</p>
+        ${res.ticket? `<div class="mt-3 bg-white rounded-xl p-3 text-xs font-mono"><p>PNR: ${res.ticket.pnr}</p><p>${res.ticket.sourceStation||res.ticket.source?.code||'-'} → ${res.ticket.destStation||res.ticket.dest?.code||'PLATFORM'}</p><p>Status: ${res.ticket.status}</p><p>Expiry: ${new Date(res.ticket.expiresAt).toLocaleString()}</p></div>`:''}
+        ${res.decoded? `<details class="mt-2 text-xs"><summary class="font-bold cursor-pointer">Decoded Payload</summary><pre class="bg-black text-green-400 p-2 rounded mt-1 overflow-auto">${JSON.stringify(res.decoded,null,2)}</pre></details>`:''}
+      </div>`;
+  }catch(e){ showToast(e.message,true); }
+}
+async function tteMarkUsed(){
+  const val=document.getElementById('tteInput').value.trim();
+  // try to extract PNR from JWT or direct PNR
+  let pnr=val;
+  if(val.startsWith('eyJ')){
+    try{ const payload=JSON.parse(atob(val.split('.')[1])); pnr=payload.pnr; }catch{}
+  }
+  if(!pnr) return showToast('Enter PNR or QR with pnr',true);
+  try{
+    const res=await api(`/tte/use/${pnr.toUpperCase()}`, {method:'POST'});
+    showToast('Marked USED: '+res.data.pnr);
+    tteVerify();
+  }catch(e){ showToast(e.message,true); }
+}
+
+// Navigation
+function showPage(p){
+  ['book','tickets','wallet','tte'].forEach(x=>{
+    document.getElementById('page-'+x).classList.toggle('hidden', x!==p);
+    const nav=document.getElementById('nav-'+x);
+    nav.className = x===p? 'flex-1 py-2.5 rounded-xl bg-[#0f1e5e] text-white text-xs font-bold' : 'flex-1 py-2.5 rounded-xl text-gray-600 text-xs font-bold';
+  });
+  if(p==='tickets') loadTickets();
+  if(p==='wallet') loadWallet();
+}
+function setBookType(t){
+  ['journey','platform','season'].forEach(x=>{
+    document.getElementById('form-'+x).classList.toggle('hidden', x!==t);
+    const btn=document.getElementById('bt-'+x);
+    btn.className = x===t? 'flex-1 py-3 rounded-xl bg-[#0f1e5e] text-white text-sm font-bold' : 'flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 text-sm font-bold';
+  });
+}
+
+// Init - load stations immediately (public), then check auth
+loadStations();
+checkAuth();
+
+</script>
+</body>
+</html>

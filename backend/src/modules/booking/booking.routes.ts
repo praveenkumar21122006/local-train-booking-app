@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { bookJourneyTicket, bookPlatformTicket, bookSeasonTicket, myTickets, getTicket } from './booking.controller';
+import { authenticate } from '../../middlewares/auth.middleware';
+const router = Router();
+router.use(authenticate);
+router.post('/journey', bookJourneyTicket);
+router.post('/platform', bookPlatformTicket);
+router.post('/season', bookSeasonTicket);
+router.get('/my-tickets', myTickets);
+router.get('/:pnr', getTicket);
+export default router;

@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum Zone {
+  CENTRAL
+  WESTERN
+  HARBOUR
+  TRANS_HARBOUR
+}
+enum TravelClass {
+  SECOND
+  FIRST
+  AC
+}
+enum TicketType {
+  JOURNEY
+  PLATFORM
+  SEASON
+}
+enum TicketStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
+enum TxnType {
+  CREDIT
+  DEBIT
+  REFUND
+}
+enum TxnStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  phone        String   @unique
+  email        String?  @unique
+  fullName     String   @map("full_name")
+  passwordHash String   @map("password_hash")
+  isVerified   Boolean  @default(false) @map("is_verified")
+  role         String   @default("USER")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  wallet       Wallet?
+  tickets      Ticket[]
+  @@map("users")
+}
+model Station {
+  code      String @id @db.VarChar(10)
+  name      String
+  zone      Zone
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(11, 8)
+  sourceTickets Ticket[] @relation("SourceStation")
+  destTickets   Ticket[] @relation("DestStation")
+  lineStations  LineStation[]
+  @@map("stations")
+}
+model Line {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  colorCode String?  @map("color_code")
+  stations  LineStation[]
+  @@map("lines")
+}
+model LineStation {
+  lineId              Int     @map("line_id")
+  stationCode         String  @map("station_code") @db.VarChar(10)
+  sequenceNum         Int     @map("sequence_num")
+  distanceFromOrigin  Decimal @map("distance_from_origin") @db.Decimal(6, 2)
+  line    Line    @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  station Station @relation(fields: [stationCode], references: [code], onDelete: Cascade)
+  @@id([lineId, stationCode])
+  @@unique([lineId, sequenceNum])
+  @@map("line_stations")
+}
+model FareSlab {
+  id             Int         @id @default(autoincrement())
+  travelClass    TravelClass @map("class")
+  minDistanceKm  Decimal     @map("min_distance_km") @db.Decimal(5, 2)
+  maxDistanceKm  Decimal     @map("max_distance_km") @db.Decimal(5, 2)
+  baseFare       Decimal     @map("base_fare") @db.Decimal(6, 2)
+  perKmRate      Decimal     @map("per_km_rate") @db.Decimal(5, 2)
+  @@unique([travelClass, minDistanceKm, maxDistanceKm])
+  @@map("fare_slabs")
+}
+model Wallet {
+  userId    String   @id @map("user_id") @db.Uuid
+  balance   Decimal  @default(0.00) @db.Decimal(10, 2)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  version   Int      @default(0)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+  @@map("wallets")
+}
+model WalletTransaction {
+  id           String    @id @default(uuid()) @db.Uuid
+  walletId     String    @map("wallet_id") @db.Uuid
+  amount       Decimal   @db.Decimal(10, 2)
+  type         TxnType
+  status       TxnStatus @default(SUCCESS)
+  referenceId  String?   @map("reference_id") @db.Uuid
+  balanceAfter Decimal   @map("balance_after") @db.Decimal(10, 2)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  wallet Wallet @relation(fields: [walletId], references: [userId], onDelete: Cascade)
+  @@index([walletId, createdAt])
+  @@map("wallet_transactions")
+}
+model Ticket {
+  id            String       @id @default(uuid()) @db.Uuid
+  pnr           String       @unique @db.VarChar(12)
+  userId        String       @map("user_id") @db.Uuid
+  ticketType    TicketType   @map("ticket_type")
+  sourceStation String?      @map("source_station") @db.VarChar(10)
+  destStation   String?      @map("dest_station") @db.VarChar(10)
+  travelClass   TravelClass? @map("travel_class")
+  fare          Decimal      @db.Decimal(6, 2)
+  distanceKm    Decimal?     @map("distance_km") @db.Decimal(6, 2)
+  status        TicketStatus @default(ACTIVE)
+  qrPayload     String       @map("qr_payload") @db.Text
+  qrSignature   String       @map("qr_signature")
+  bookedAt      DateTime     @default(now()) @map("booked_at")
+  validFrom     DateTime     @default(now()) @map("valid_from")
+  expiresAt     DateTime     @map("expires_at")
+  usedAt        DateTime?    @map("used_at")
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source        Station?     @relation("SourceStation", fields: [sourceStation], references: [code])
+  dest          Station?     @relation("DestStation", fields: [destStation], references: [code])
+  seasonPass    SeasonPass?
+  @@index([userId, status])
+  @@index([expiresAt])
+  @@map("tickets")
+}
+model SeasonPass {
+  ticketId  String   @id @map("ticket_id") @db.Uuid
+  passType  String   @map("pass_type")
+  validTill DateTime @map("valid_till")
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  @@map("season_passes")
+}
