@@ -3,7 +3,6 @@
   "outputDirectory": "frontend",
   "functions": {
     "api/index.js": {
-      "runtime": "nodejs22.x",
       "includeFiles": "backend/dist/**, backend/node_modules/.prisma/**, backend/node_modules/@prisma/client/**, backend/prisma/**"
     }
   },
